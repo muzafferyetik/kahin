@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24 * 7
 
-    cors_origins: list[str] = [
+    cors_origins: list[str] | str = [
         "http://localhost:3000",
         "http://localhost:3001",
         "http://127.0.0.1:3000",
@@ -35,13 +35,17 @@ class Settings(BaseSettings):
                 return v.replace("postgresql://", "postgresql+asyncpg://", 1)
         return v
 
-    @field_validator("cors_origins", mode="before")
+    @field_validator("cors_origins", mode="after")
     @classmethod
-    def parse_cors_origins(cls, v: Any) -> list[str] | Any:
+    def parse_cors_origins(cls, v: Any) -> list[str]:
         if isinstance(v, str):
+            v = v.strip()
             if v.startswith("[") and v.endswith("]"):
                 import json
-                return json.loads(v)
+                try:
+                    return json.loads(v)
+                except Exception:
+                    pass
             return [item.strip() for item in v.split(",") if item.strip()]
         return v
 
