@@ -1,0 +1,144 @@
+services:
+  # ---------------------------------------------------------------------------
+  # 1. PostgreSQL (Üretim Veritabanı)
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: kahin-postgres-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kahin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kahin_prod_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-kahin}
+    volumes:
+      - pg_data_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kahin} -d ${POSTGRES_DB:-kahin}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kahin-network
+
+  # ---------------------------------------------------------------------------
+  # 2. Redis (Liderlik Tablosu & Pub/Sub)
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: kahin-redis-prod
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data_prod:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kahin-network
+
+  # ---------------------------------------------------------------------------
+  # 3. FastAPI Backend (AMM Motoru + WebSocket)
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: kahin-backend-prod
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-kahin}:${POSTGRES_PASSWORD:-kahin_prod_secret}@postgres:5432/${POSTGRES_DB:-kahin}
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:-change-this-to-a-very-secure-random-string-in-prod}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      PORT: 8000
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - kahin-network
+
+  # ---------------------------------------------------------------------------
+  # 4. Streamlit Yönetici Paneli
+  # ---------------------------------------------------------------------------
+  admin-panel:
+    build:
+      context: ./admin-panel
+      dockerfile: Dockerfile
+    container_name: kahin-admin-prod
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-kahin}:${POSTGRES_PASSWORD:-kahin_prod_secret}@postgres:5432/${POSTGRES_DB:-kahin}
+      API_URL: http://backend:8000/api/v1
+      PORT: 8501
+    networks:
+      - kahin-network
+
+  # ---------------------------------------------------------------------------
+  # 5. Next.js Web Ön Yüzü
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend-web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api/v1}
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-/ws/markets}
+    container_name: kahin-frontend-prod
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      HOSTNAME: "0.0.0.0"
+    networks:
+      - kahin-network
+
+  # ---------------------------------------------------------------------------
+  # 6. Caddy (Otomatik Let's Encrypt SSL & Tersine Proxy)
+  # ---------------------------------------------------------------------------
+  caddy:
+    image: caddy:2-alpine
+    container_name: kahin-caddy-prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    depends_on:
+      - frontend
+      - backend
+      - admin-panel
+    networks:
+      - kahin-network
+
+networks:
+  kahin-network:
+    driver: bridge
+
+volumes:
+  pg_data_prod:
+  redis_data_prod:
+  caddy_data:
+  caddy_config:

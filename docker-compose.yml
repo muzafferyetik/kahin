@@ -1,0 +1,54 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kahin-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kahin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kahin}
+      POSTGRES_DB: ${POSTGRES_DB:-kahin}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - kahin_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kahin} -d ${POSTGRES_DB:-kahin}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: kahin-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - kahin_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Opsiyonel: API'yi de container içinde çalıştırmak için
+  #   docker compose --profile full up -d --build
+  api:
+    profiles: ["full"]
+    build: ./backend
+    container_name: kahin-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-kahin}:${POSTGRES_PASSWORD:-kahin}@postgres:5432/${POSTGRES_DB:-kahin}
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+    ports:
+      - "${API_PORT:-8001}:8000"
+
+volumes:
+  kahin_pgdata:
+  kahin_redisdata:

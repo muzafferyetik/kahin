@@ -1,0 +1,76 @@
+services:
+  # ---------------------------------------------------------------------------
+  # 1. FastAPI Backend (Canlı AMM Motoru, REST API & WebSocket)
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: kahin-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: starter
+    region: frankfurt
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: kahin-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: kahin-redis
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: "https://kahin.vercel.app,http://localhost:3000,http://localhost:3001"
+      - key: WEB_CONCURRENCY
+        value: "2"
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "10080"
+
+  # ---------------------------------------------------------------------------
+  # 2. Streamlit Yönetici Paneli (Market Çözümleme & Acil Kilit)
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: kahin-admin
+    runtime: docker
+    dockerfilePath: ./admin-panel/Dockerfile
+    dockerContext: ./admin-panel
+    plan: starter
+    region: frankfurt
+    healthCheckPath: /_stcore/health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: kahin-db
+          property: connectionString
+      - key: API_URL
+        fromService:
+          type: web
+          name: kahin-backend
+          property: host
+          suffix: /api/v1
+
+databases:
+  # ---------------------------------------------------------------------------
+  # 3. Yönetilen PostgreSQL Veritabanı (Piyasa Verileri, Ledger, Pozisyonlar)
+  # ---------------------------------------------------------------------------
+  - name: kahin-db
+    databaseName: kahin
+    user: kahin
+    plan: free
+    region: frankfurt
+    postgresMajorVersion: 16
+
+  # ---------------------------------------------------------------------------
+  # 4. Yönetilen Redis (Liderlik Tablosu ZSET & Canlı Fiyat Pub/Sub)
+  # ---------------------------------------------------------------------------
+  - type: redis
+    name: kahin-redis
+    plan: free
+    region: frankfurt
+    ipAllowList: []
+    maxmemoryPolicy: noeviction

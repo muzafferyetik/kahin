@@ -1,0 +1,37 @@
+# Kahin Production Caddyfile — Otomatik SSL & Tersine Proxy (Reverse Proxy)
+
+{$DOMAIN:localhost} {
+    # API ve Sağlık Kontrolleri
+    handle /api/* {
+        reverse_proxy backend:8000
+    }
+
+    # Canlı Borsa WebSocket Bağlantısı
+    handle /ws/* {
+        reverse_proxy backend:8000
+    }
+
+    handle /health {
+        reverse_proxy backend:8000
+    }
+
+    # Yönetici Paneli (Streamlit)
+    handle_path /admin* {
+        reverse_proxy admin-panel:8501
+    }
+
+    # Next.js Ön Yüz (App Router & Dynamic OG)
+    handle {
+        reverse_proxy frontend:3000
+    }
+
+    # Güvenlik ve Performans Başlıkları
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    encode gzip zstd
+}
