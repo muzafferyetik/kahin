@@ -32,7 +32,7 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalP
         await login(username, password);
         const loggedUser = useAuthStore.getState().user;
         if (loggedUser?.is_admin) {
-          window.open("http://localhost:8501", "_blank");
+          window.open(process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:8501", "_blank");
         }
       } else {
         await register(username, email, password);

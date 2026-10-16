@@ -132,7 +132,7 @@ export function Navbar() {
                 {/* Admin Panel Button if user is admin */}
                 {user.is_admin && (
                   <a
-                    href="http://localhost:8501"
+                    href={process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:8501"}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-red-500/20 hover:from-amber-500/30 hover:to-red-500/30 border border-amber-500/40 text-amber-300 text-xs font-black transition shadow-sm animate-pulse"
