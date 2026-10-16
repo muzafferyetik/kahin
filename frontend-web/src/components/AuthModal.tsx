@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/useAuthStore";
 import { X, Sparkles, User, Mail, Lock, AlertCircle, ArrowRight } from "lucide-react";
 
@@ -11,6 +12,7 @@ interface AuthModalProps {
 }
 
 export function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalProps) {
+  const router = useRouter();
   const [mode, setMode] = useState<"login" | "register">(initialMode);
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -32,7 +34,7 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalP
         await login(username, password);
         const loggedUser = useAuthStore.getState().user;
         if (loggedUser?.is_admin) {
-          window.open(process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:8501", "_blank");
+          router.push("/admin");
         }
       } else {
         await register(username, email, password);

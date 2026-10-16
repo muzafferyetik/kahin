@@ -363,3 +363,77 @@ export async function resolveLeagueGroupMarkets(
   return res.json();
 }
 
+// ---------- Admin API ----------
+export async function fetchAdminMarkets(): Promise<Market[]> {
+  const res = await fetch(`${API_BASE}/admin/markets`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Admin piyasaları alınamadı." }));
+    throw new Error(err.detail || "Admin piyasaları alınamadı.");
+  }
+  return res.json();
+}
+
+export async function createAdminMarket(data: {
+  title: string;
+  slug?: string;
+  category: "FUTBOL" | "MAGAZIN" | "GUNDEM" | "EKONOMI";
+  resolution_criteria: string;
+  closes_at: string;
+  initial_pool?: number;
+  status?: "OPEN" | "DRAFT";
+}): Promise<Market> {
+  const res = await fetch(`${API_BASE}/admin/markets`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Soru oluşturulamadı." }));
+    throw new Error(err.detail || "Soru oluşturulamadı.");
+  }
+  return res.json();
+}
+
+export async function updateAdminMarketStatus(
+  id: string,
+  status: "LOCKED" | "CANCELLED"
+): Promise<{ status: string }> {
+  const res = await fetch(`${API_BASE}/admin/markets/${id}/status`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Durum güncellenemedi." }));
+    throw new Error(err.detail || "Durum güncellenemedi.");
+  }
+  return res.json();
+}
+
+export async function resolveAdminMarket(
+  id: string,
+  outcome: "YES" | "NO"
+): Promise<{ status: string }> {
+  const res = await fetch(`${API_BASE}/admin/markets/${id}/resolve`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify({ outcome }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Soru sonuçlandırılamadı." }));
+    throw new Error(err.detail || "Soru sonuçlandırılamadı.");
+  }
+  return res.json();
+}
+

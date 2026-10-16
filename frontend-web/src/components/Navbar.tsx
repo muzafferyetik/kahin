@@ -131,16 +131,14 @@ export function Navbar() {
               <>
                 {/* Admin Panel Button if user is admin */}
                 {user.is_admin && (
-                  <a
-                    href={process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:8501"}
-                    target="_blank"
-                    rel="noreferrer"
+                  <Link
+                    href="/admin"
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-red-500/20 hover:from-amber-500/30 hover:to-red-500/30 border border-amber-500/40 text-amber-300 text-xs font-black transition shadow-sm animate-pulse"
                     title="Yönetici Paneline Git"
                   >
                     <span>👑</span>
                     <span className="hidden sm:inline">Yönetici Paneli</span>
-                  </a>
+                  </Link>
                 )}
                 {/* Bankruptcy support pill if eligible (< 50 KP) */}
                 {user.portfolio_value_kp < 50 && (
